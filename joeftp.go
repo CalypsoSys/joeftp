@@ -5,7 +5,8 @@
 // Currently FTP commands supports
 // ==============================
 //
-// 	Yes = PASS <SP> <password> <CRLF>
+//      Yes - USER <SP> <username> <CRLF> 
+// 	Yes - PASS <SP> <password> <CRLF>
 // 	No  - ACCT <SP> <account-information> <CRLF>
 // 	No  - CWD  <SP> <pathname> <CRLF>
 // 	No  - CDUP <CRLF>
