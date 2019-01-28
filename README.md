@@ -14,7 +14,7 @@ Current FTP commands supported
    * DELE <pathname>
    * LIST
    * SITE <string>
-   * STAT <pathname>]
+   * STAT <pathname>
 
 
 Sample code
