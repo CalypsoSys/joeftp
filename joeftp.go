@@ -27,7 +27,7 @@
 // 	No  - RNFR <SP> <pathname> <CRLF>
 // 	No  - RNTO <SP> <pathname> <CRLF>
 // 	No  - ABOR <CRLF>
-// 	No  - DELE <SP> <pathname> <CRLF>
+// 	Yes - DELE <SP> <pathname> <CRLF>
 // 	No  - RMD  <SP> <pathname> <CRLF>
 // 	No  - MKD  <SP> <pathname> <CRLF>
 // 	Yes - PWD  <CRLF>
