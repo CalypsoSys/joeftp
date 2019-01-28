@@ -26,8 +26,7 @@ package main
 
 import (
 	"fmt"
-	"joeftp"
-	"regexp"
+	"github.com/CalypsoSys/joeftp"
 )
 
 func main() {
