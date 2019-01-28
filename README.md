@@ -6,15 +6,16 @@ A simple library to allow client access to FTP server
 see https://www.ietf.org/rfc/rfc959.txt
 
 Current FTP commands supported
-   * PASS <password>
+   * USER `<username>`
+   * PASS `<password>`
    * QUIT
-   * TYPE <type-code>
-   * RETR <pathname>
-   * STOR <pathname>
-   * DELE <pathname>
+   * TYPE `<type-code>`
+   * RETR `<pathname>`
+   * STOR `<pathname>`
+   * DELE `<pathname>`
    * LIST
-   * SITE <string>
-   * STAT <pathname>
+   * SITE `<string>`
+   * STAT `<pathname>`
 
 
 Sample code
