@@ -5,18 +5,16 @@ A simple library to allow client access to FTP server
 
 see https://www.ietf.org/rfc/rfc959.txt
 
-Currently FTP commands supported
-==============================
-   PASS <password>
-   QUIT
-   TYPE <type-code>
-   RETR <pathname>
-   STOR <pathname>
-   DELE <pathname>
-   PWD
-   LIST
-   SITE <string>
-   STAT <pathname>]
+Current FTP commands supported
+   * PASS <password>
+   * QUIT
+   * TYPE <type-code>
+   * RETR <pathname>
+   * STOR <pathname>
+   * DELE <pathname>
+   * LIST
+   * SITE <string>
+   * STAT <pathname>]
 
 
 Sample code
