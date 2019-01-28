@@ -203,7 +203,7 @@ func (ftp *JoeFtp) Logon(userName string, password string) (int, string, error) 
 
 // LogonAnonymous login to the specified FTP server using the anonymous user (no password)
 // used FTP commands: USER
-func (ftp *JoeFtp) LogonAnonymous(userName string, password string) (int, string, error) {
+func (ftp *JoeFtp) LogonAnonymous() (int, string, error) {
 	return ftp.sendCommand("USER anonymous\r\n")
 }
 
