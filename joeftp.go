@@ -261,7 +261,7 @@ func (ftp *JoeFtp) RetreiveFile(fileName string) (int, string, []byte, error) {
 
 // DeleteFile This command causes the specifed file deleted from the FTP site
 // used FTP commands: DELE
-func (ftp *JoeFtp) DeleteFile(fileName string) (int, string, []byte, error) {
+func (ftp *JoeFtp) DeleteFile(fileName string) (int, string, error) {
 	return ftp.sendCommand(fmt.Sprintf("DELE %s", fileName))
 }
 
