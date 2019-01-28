@@ -36,7 +36,7 @@ func main() {
 	ftp := joeftp.JoeFtp{}
 	defer ftp.Close()
 
-	ftp.Connect("ftp.cs.brown.edu", 21)
+	ftp.Connect("ftp.cs.brown.edu", 21, true)
 	ftp.LogonAnonymous()
 	ftp.List()
 
