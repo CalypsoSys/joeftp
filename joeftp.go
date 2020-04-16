@@ -106,6 +106,10 @@ func (ftp *JoeFtp) Close() error {
 	return nil
 }
 
+func (ftp *JoeFtp) SendCommand(command string) (int, string, error) {
+	return ftp.sendCommand(command)
+}
+
 func (ftp *JoeFtp) sendCommand(command string) (int, string, error) {
 	if ftp.timeout > 0 {
 		ftp.conn.SetWriteDeadline(time.Now().Add(ftp.timeout))
