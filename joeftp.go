@@ -313,6 +313,13 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	}
 
 	data := []byte{}
+
+	if code == 550 {
+		//550 is not expecting anymore data. let's end it now  and send it back. 
+		//if the cmd was successful & data was coming, code = 125 here
+		return code, msg, data, err
+	}
+
 	if dataIn == nil {
 		b := make([]byte, 1)
 		readStream := true
