@@ -205,6 +205,18 @@ func (ftp *JoeFtp) readCommand() (int, string, error) {
 // Logon login to the specified FTP server using the supplied credentials
 // used FTP commands: USER and PASS
 func (ftp *JoeFtp) Logon(userName string, password string) (int, string, error) {
+	if ftp.FTPS {
+		code, msg, err := ftp.sendCommand("PBSZ 0\r\n")
+		if err != nil {
+			return code, msg, err
+		}
+
+		code, msg, err = ftp.sendCommand("PROT P\r\n") // encrypt data connection
+		if err != nil {
+			return code, msg, err
+		}
+	}
+
 	code, msg, err := ftp.sendCommand(fmt.Sprintf("USER %s\r\n", userName))
 	if err != nil {
 		return code, msg, err
@@ -346,6 +358,11 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 		return code, msg, data, err
 	}
 
+	if ftp.FTPS {
+		tlsConn := tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
+		tlsConn.Handshake()
+		conn = net.Conn(tlsConn)
+	}
 	if dataIn == nil {
 		b := make([]byte, 1)
 		readStream := true
