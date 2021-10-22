@@ -1,6 +1,8 @@
 // Package joeftp implements a FTP client descrive in RFC 959
 //
 // see https://www.ietf.org/rfc/rfc959.txt
+//     https://www.ietf.org/rfc/rfc2428.txt
+//     https://www.ietf.org/rfc/rfc4217.txt
 //
 // Currently FTP commands supports
 // ==============================
