@@ -5,7 +5,7 @@
 // Currently FTP commands supports
 // ==============================
 //
-//      Yes - USER <SP> <username> <CRLF> 
+//      Yes - USER <SP> <username> <CRLF>
 // 	Yes - PASS <SP> <password> <CRLF>
 // 	No  - ACCT <SP> <account-information> <CRLF>
 // 	No  - CWD  <SP> <pathname> <CRLF>
@@ -50,6 +50,7 @@
 package joeftp
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -60,29 +61,24 @@ import (
 
 // JoeFtp structure to control access to a FTP server
 type JoeFtp struct {
-	conn      net.Conn
-	timeout   time.Duration
-	debugMode bool
+	Host            string
+	Port            int
+	Timeout         time.Duration
+	FTPS            bool
+	ExtendedPassive bool
+	DebugMode       bool
+	conn            net.Conn
 }
 
 // Connect creates a TCP connection to a FTP server specifed by host:port
-func (ftp *JoeFtp) Connect(host string, port int, debugMode bool) (int, string, error) {
-	return ftp.connect(host, port, -1, debugMode)
-}
-
-// ConnectTimeout creates a TCP connection to a FTP server specifed by host:port with the supplied timeout
-func (ftp *JoeFtp) ConnectTimeout(host string, port int, timeout time.Duration, debugMode bool) (int, string, error) {
-	return ftp.connect(host, port, timeout, debugMode)
-}
-
-func (ftp *JoeFtp) connect(host string, port int, timeout time.Duration, debugMode bool) (int, string, error) {
+func (ftp *JoeFtp) Connect() (int, string, error) {
 	var (
 		err  error
 		conn net.Conn
 	)
-	addr := fmt.Sprintf("%s:%d", host, port)
-	if timeout > 0 {
-		conn, err = net.DialTimeout("tcp", addr, timeout)
+	addr := fmt.Sprintf("%s:%d", ftp.Host, ftp.Port)
+	if ftp.Timeout > 0 {
+		conn, err = net.DialTimeout("tcp", addr, ftp.Timeout)
 	} else {
 		conn, err = net.Dial("tcp", addr)
 	}
@@ -91,10 +87,20 @@ func (ftp *JoeFtp) connect(host string, port int, timeout time.Duration, debugMo
 		return 0, "", err
 	}
 	ftp.conn = conn
-	ftp.timeout = timeout
-	ftp.debugMode = debugMode
 
-	return ftp.readCommand()
+	code, msg, err := ftp.readCommand()
+	if ftp.FTPS {
+		var tlsConn *tls.Conn
+
+		code, msg, err = ftp.SendCommand("AUTH TLS\r\n")
+		if err == nil {
+			tlsConn = tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
+			tlsConn.Handshake()
+			ftp.conn = net.Conn(tlsConn)
+		}
+	}
+
+	return code, msg, err
 }
 
 // Close close the extablished tcp connection to the FTP server
@@ -106,13 +112,14 @@ func (ftp *JoeFtp) Close() error {
 	return nil
 }
 
+// SendCommand send a command to the FTP server
 func (ftp *JoeFtp) SendCommand(command string) (int, string, error) {
 	return ftp.sendCommand(command)
 }
 
 func (ftp *JoeFtp) sendCommand(command string) (int, string, error) {
-	if ftp.timeout > 0 {
-		ftp.conn.SetWriteDeadline(time.Now().Add(ftp.timeout))
+	if ftp.Timeout > 0 {
+		ftp.conn.SetWriteDeadline(time.Now().Add(ftp.Timeout))
 	}
 	_, err := ftp.conn.Write([]byte(command))
 	if err != nil {
@@ -123,8 +130,8 @@ func (ftp *JoeFtp) sendCommand(command string) (int, string, error) {
 }
 
 func (ftp *JoeFtp) read(b []byte) (int, error) {
-	if ftp.timeout > 0 {
-		err := ftp.conn.SetReadDeadline(time.Now().Add(ftp.timeout))
+	if ftp.Timeout > 0 {
+		err := ftp.conn.SetReadDeadline(time.Now().Add(ftp.Timeout))
 		if err != nil {
 			return 0, err
 		}
@@ -188,7 +195,7 @@ func (ftp *JoeFtp) readCommand() (int, string, error) {
 		prev = b[0]
 	}
 
-	if ftp.debugMode {
+	if ftp.DebugMode {
 		fmt.Printf("Code: %d\n\n%s\n\nError: %v\n", code, string(msg), err)
 	}
 
@@ -278,11 +285,20 @@ func (ftp *JoeFtp) Quit() (int, string, error) {
 func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, error) {
 	var conn net.Conn
 
-	code, msg, err := ftp.sendCommand("PASV\r\n")
+	var passiveCmd, passiveRegex string
+	if ftp.ExtendedPassive == true {
+		passiveCmd = "EPSV\r\n"
+		passiveRegex = `Entering Extended Passive Mode \(\|\|\|(?P<port>\d+)\|\)`
+	} else {
+		passiveCmd = "PASV\r\n"
+		passiveRegex = `Entering Passive Mode \((?P<ip1>\d+),(?P<ip2>\d+),(?P<ip3>\d+),(?P<ip4>\d+),(?P<port1>\d+),(?P<port2>\d+)\)`
+	}
+
+	code, msg, err := ftp.sendCommand(passiveCmd)
 	if err != nil {
 		return code, msg, nil, err
 	}
-	regPassive := regexp.MustCompile(`Entering Passive Mode \((?P<ip1>\d+),(?P<ip2>\d+),(?P<ip3>\d+),(?P<ip4>\d+),(?P<port1>\d+),(?P<port2>\d+)\)`)
+	regPassive := regexp.MustCompile(passiveRegex)
 	match := regPassive.FindStringSubmatch(msg)
 
 	paramsMap := make(map[string]string)
@@ -292,15 +308,25 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 		}
 	}
 
-	port1, err := strconv.Atoi(paramsMap["port1"])
-	if err != nil {
-		return code, msg, nil, err
+	var passiveHost string
+	if ftp.ExtendedPassive == true {
+		port, err := strconv.Atoi(paramsMap["port"])
+		if err != nil {
+			return code, msg, nil, err
+		}
+		passiveHost = fmt.Sprintf("%s:%d", ftp.Host, port)
+	} else {
+		port1, err := strconv.Atoi(paramsMap["port1"])
+		if err != nil {
+			return code, msg, nil, err
+		}
+		port2, err := strconv.Atoi(paramsMap["port2"])
+		if err != nil {
+			return code, msg, nil, err
+		}
+		passiveHost = fmt.Sprintf("%s.%s.%s.%s:%d", paramsMap["ip1"], paramsMap["ip2"], paramsMap["ip3"], paramsMap["ip4"], (port1*256)+port2)
 	}
-	port2, err := strconv.Atoi(paramsMap["port2"])
-	if err != nil {
-		return code, msg, nil, err
-	}
-	passiveHost := fmt.Sprintf("%s.%s.%s.%s:%d", paramsMap["ip1"], paramsMap["ip2"], paramsMap["ip3"], paramsMap["ip4"], (port1*256)+port2)
+
 	conn, err = net.Dial("tcp", passiveHost)
 	if err != nil {
 		return code, msg, nil, err
@@ -315,7 +341,7 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	data := []byte{}
 
 	if code == 550 {
-		//550 is not expecting anymore data. let's end it now  and send it back. 
+		//550 is not expecting anymore data. let's end it now  and send it back.
 		//if the cmd was successful & data was coming, code = 125 here
 		return code, msg, data, err
 	}
@@ -324,8 +350,8 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 		b := make([]byte, 1)
 		readStream := true
 		for readStream {
-			if ftp.timeout > 0 {
-				conn.SetReadDeadline(time.Now().Add(ftp.timeout))
+			if ftp.Timeout > 0 {
+				conn.SetReadDeadline(time.Now().Add(ftp.Timeout))
 			}
 			n, err := conn.Read(b)
 			if n == 1 && err == nil {
@@ -335,8 +361,8 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 			}
 		}
 	} else {
-		if ftp.timeout > 0 {
-			conn.SetWriteDeadline(time.Now().Add(ftp.timeout))
+		if ftp.Timeout > 0 {
+			conn.SetWriteDeadline(time.Now().Add(ftp.Timeout))
 		}
 		n, err := conn.Write(dataIn)
 		if n == 0 || err != nil {
@@ -345,7 +371,7 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 		conn.Close()
 	}
 	code, msg, err = ftp.readCommand()
-	if ftp.debugMode {
+	if ftp.DebugMode {
 		fmt.Printf("Data: %s", string(data))
 	}
 
