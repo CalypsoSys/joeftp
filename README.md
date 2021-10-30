@@ -1,9 +1,11 @@
 # joeftp
-joeftp - a golang FTP and FTPS Client Library that implements a FTP client described in RFC 959
+joeftp - a golang FTP and FTPS Client Library that implements a FTP client described in RFC 959 and 4217
 
 A simple library to allow client access to FTP server
 
 see https://www.ietf.org/rfc/rfc959.txt
+    https://www.ietf.org/rfc/rfc2428.txt
+    https://www.ietf.org/rfc/rfc4217.txt
 
 Current FTP commands supported
    * USER `<username>`
