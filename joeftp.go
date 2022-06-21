@@ -134,7 +134,7 @@ func (ftp *JoeFtp) sendCommand(command string) (int, string, error) {
 	}
 	_, err := ftp.conn.Write([]byte(command))
 	if err != nil {
-		return 0, "", nil
+		return 0, "writing data", nil
 	}
 
 	return ftp.readCommand()
@@ -284,7 +284,7 @@ func (ftp *JoeFtp) StoreFile(fileName string, filePath string) (int, string, []b
 	if err == nil {
 		return ftp.StoreBytes(fileName, b)
 	}
-	return 0, "", nil, err
+	return 0, "store file", nil, err
 }
 
 // RetreiveFile This command causes the specifed file to be retrieved from the FTP site
@@ -370,8 +370,15 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	}
 
 	if ftp.FTPS {
-		tlsConn := tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
-		tlsConn.Handshake()
+		tlsConfig := tls.Config{InsecureSkipVerify: ftp.TlsInsecureSkipVerify}
+		if ftp.TlsMinVersion != 0 {
+			tlsConfig.MinVersion = ftp.TlsMinVersion
+		}
+		tlsConn := tls.Client(conn, &tlsConfig)
+		err = tlsConn.Handshake()
+		if err != nil {
+			return 0, "Error negotiating TLS", nil, err
+		}
 		conn = net.Conn(tlsConn)
 	}
 	if dataIn == nil {
