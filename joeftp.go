@@ -63,13 +63,15 @@ import (
 
 // JoeFtp structure to control access to a FTP server
 type JoeFtp struct {
-	Host            string
-	Port            int
-	Timeout         time.Duration
-	FTPS            bool
-	ExtendedPassive bool
-	DebugMode       bool
-	conn            net.Conn
+	Host                  string
+	Port                  int
+	Timeout               time.Duration
+	FTPS                  bool
+	ExtendedPassive       bool
+	DebugMode             bool
+	TlsInsecureSkipVerify bool
+	TlsMinVersion         uint16
+	conn                  net.Conn
 }
 
 // Connect creates a TCP connection to a FTP server specifed by host:port
@@ -86,7 +88,7 @@ func (ftp *JoeFtp) Connect() (int, string, error) {
 	}
 
 	if err != nil {
-		return 0, "", err
+		return 0, "Error dialing host", err
 	}
 	ftp.conn = conn
 
@@ -96,8 +98,15 @@ func (ftp *JoeFtp) Connect() (int, string, error) {
 
 		code, msg, err = ftp.SendCommand("AUTH TLS\r\n")
 		if err == nil {
-			tlsConn = tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
-			tlsConn.Handshake()
+			tlsConfig := tls.Config{InsecureSkipVerify: ftp.TlsInsecureSkipVerify}
+			if ftp.TlsMinVersion != 0 {
+				tlsConfig.MinVersion = ftp.TlsMinVersion
+			}
+			tlsConn = tls.Client(conn, &tlsConfig)
+			err = tlsConn.Handshake()
+			if err != nil {
+				return 0, "Error negotiating TLS", err
+			}
 			ftp.conn = net.Conn(tlsConn)
 		}
 	}
