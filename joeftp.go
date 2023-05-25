@@ -311,10 +311,10 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	var passiveCmd, passiveRegex string
 	if ftp.ExtendedPassive == true {
 		passiveCmd = "EPSV\r\n"
-		passiveRegex = `Entering Extended Passive Mode \(\|\|\|(?P<port>\d+)\|\)`
+		passiveRegex = `(?i)Entering Extended Passive Mode \(\|\|\|(?P<port>\d+)\|\)`
 	} else {
 		passiveCmd = "PASV\r\n"
-		passiveRegex = `Entering Passive Mode \((?P<ip1>\d+),(?P<ip2>\d+),(?P<ip3>\d+),(?P<ip4>\d+),(?P<port1>\d+),(?P<port2>\d+)\)`
+		passiveRegex = `(?i)Entering Passive Mode \((?P<ip1>\d+),(?P<ip2>\d+),(?P<ip3>\d+),(?P<ip4>\d+),(?P<port1>\d+),(?P<port2>\d+)\)`
 	}
 
 	code, msg, err := ftp.sendCommand(passiveCmd)
