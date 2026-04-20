@@ -1,63 +1,65 @@
 // Package joeftp implements a FTP client descrive in RFC 959
 //
 // see https://www.ietf.org/rfc/rfc959.txt
-//     https://www.ietf.org/rfc/rfc2428.txt
-//     https://www.ietf.org/rfc/rfc4217.txt
+//
+//	https://www.ietf.org/rfc/rfc2428.txt
+//	https://www.ietf.org/rfc/rfc4217.txt
 //
 // Currently FTP commands supports
 // ==============================
 //
-//      Yes - USER <SP> <username> <CRLF>
-// 	Yes - PASS <SP> <password> <CRLF>
-// 	No  - ACCT <SP> <account-information> <CRLF>
-// 	No  - CWD  <SP> <pathname> <CRLF>
-// 	No  - CDUP <CRLF>
-// 	No  - SMNT <SP> <pathname> <CRLF>
-// 	Yes - QUIT <CRLF>
-// 	No  - REIN <CRLF>
-// 	No  - PORT <SP> <host-port> <CRLF>
-// 	No  - PASV <CRLF>
-// 	Yes - TYPE <SP> <type-code> <CRLF>
-// 	No  - STRU <SP> <structure-code> <CRLF>
-// 	No  - MODE <SP> <mode-code> <CRLF>
-// 	Yes - RETR <SP> <pathname> <CRLF>
-// 	Yes - STOR <SP> <pathname> <CRLF>
-// 	No  - STOU <CRLF>
-// 	No  - APPE <SP> <pathname> <CRLF>
-// 	No  - ALLO <SP> <decimal-integer>
-// 		[<SP> R <SP> <decimal-integer>] <CRLF>
-// 	No  - REST <SP> <marker> <CRLF>
-// 	No  - RNFR <SP> <pathname> <CRLF>
-// 	No  - RNTO <SP> <pathname> <CRLF>
-// 	No  - ABOR <CRLF>
-// 	Yes - DELE <SP> <pathname> <CRLF>
-// 	No  - RMD  <SP> <pathname> <CRLF>
-// 	No  - MKD  <SP> <pathname> <CRLF>
-// 	Yes - PWD  <CRLF>
-// 	Yes - LIST [<SP> <pathname>] <CRLF>
-// 	No  - NLST [<SP> <pathname>] <CRLF>
-// 	Yes - SITE <SP> <string> <CRLF>
-// 	No  - SYST <CRLF>
-// 	Yes - STAT [<SP> <pathname>] <CRLF>
-// 	No  - HELP [<SP> <string>] <CRLF>
-// 	No  - NOOP <CRLF>
+//	     Yes - USER <SP> <username> <CRLF>
+//		Yes - PASS <SP> <password> <CRLF>
+//		No  - ACCT <SP> <account-information> <CRLF>
+//		No  - CWD  <SP> <pathname> <CRLF>
+//		No  - CDUP <CRLF>
+//		No  - SMNT <SP> <pathname> <CRLF>
+//		Yes - QUIT <CRLF>
+//		No  - REIN <CRLF>
+//		No  - PORT <SP> <host-port> <CRLF>
+//		No  - PASV <CRLF>
+//		Yes - TYPE <SP> <type-code> <CRLF>
+//		No  - STRU <SP> <structure-code> <CRLF>
+//		No  - MODE <SP> <mode-code> <CRLF>
+//		Yes - RETR <SP> <pathname> <CRLF>
+//		Yes - STOR <SP> <pathname> <CRLF>
+//		No  - STOU <CRLF>
+//		No  - APPE <SP> <pathname> <CRLF>
+//		No  - ALLO <SP> <decimal-integer>
+//			[<SP> R <SP> <decimal-integer>] <CRLF>
+//		No  - REST <SP> <marker> <CRLF>
+//		No  - RNFR <SP> <pathname> <CRLF>
+//		No  - RNTO <SP> <pathname> <CRLF>
+//		No  - ABOR <CRLF>
+//		Yes - DELE <SP> <pathname> <CRLF>
+//		No  - RMD  <SP> <pathname> <CRLF>
+//		No  - MKD  <SP> <pathname> <CRLF>
+//		Yes - PWD  <CRLF>
+//		Yes - LIST [<SP> <pathname>] <CRLF>
+//		No  - NLST [<SP> <pathname>] <CRLF>
+//		Yes - SITE <SP> <string> <CRLF>
+//		No  - SYST <CRLF>
+//		Yes - STAT [<SP> <pathname>] <CRLF>
+//		No  - HELP [<SP> <string>] <CRLF>
+//		No  - NOOP <CRLF>
 //
-// 	Non Passive command
-//         ABOR, ALLO, DELE, CWD, CDUP, SMNT, HELP, MODE, NOOP, PASV,
-// 		QUIT, SITE, PORT, SYST, STAT, RMD, MKD, PWD, STRU, and TYPE.
+//		Non Passive command
+//	        ABOR, ALLO, DELE, CWD, CDUP, SMNT, HELP, MODE, NOOP, PASV,
+//			QUIT, SITE, PORT, SYST, STAT, RMD, MKD, PWD, STRU, and TYPE.
 //
-// 	Commands that require passive
-// 		APPE, LIST, NLST, REIN, RETR, STOR, and STOU.
-//
+//		Commands that require passive
+//			APPE, LIST, NLST, REIN, RETR, STOR, and STOU.
 package joeftp
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -311,7 +313,6 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	var passiveCmd, passiveRegex string
 	if ftp.ExtendedPassive == true {
 		passiveCmd = "EPSV\r\n"
-		passiveRegex = `(?i)Entering Extended Passive Mode \(\|\|\|(?P<port>\d+)\|\)`
 	} else {
 		passiveCmd = "PASV\r\n"
 		passiveRegex = `(?i)Entering Passive Mode \((?P<ip1>\d+),(?P<ip2>\d+),(?P<ip3>\d+),(?P<ip4>\d+),(?P<port1>\d+),(?P<port2>\d+)\)`
@@ -321,24 +322,25 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	if err != nil {
 		return code, msg, nil, err
 	}
-	regPassive := regexp.MustCompile(passiveRegex)
-	match := regPassive.FindStringSubmatch(msg)
-
-	paramsMap := make(map[string]string)
-	for i, name := range regPassive.SubexpNames() {
-		if i > 0 && i <= len(match) {
-			paramsMap[name] = match[i]
-		}
-	}
 
 	var passiveHost string
 	if ftp.ExtendedPassive == true {
-		port, err := strconv.Atoi(paramsMap["port"])
+		port, err := parseExtendedPassivePort(msg)
 		if err != nil {
 			return code, msg, nil, err
 		}
 		passiveHost = fmt.Sprintf("%s:%d", ftp.Host, port)
 	} else {
+		regPassive := regexp.MustCompile(passiveRegex)
+		match := regPassive.FindStringSubmatch(msg)
+
+		paramsMap := make(map[string]string)
+		for i, name := range regPassive.SubexpNames() {
+			if i > 0 && i <= len(match) {
+				paramsMap[name] = match[i]
+			}
+		}
+
 		port1, err := strconv.Atoi(paramsMap["port1"])
 		if err != nil {
 			return code, msg, nil, err
@@ -411,4 +413,36 @@ func (ftp *JoeFtp) passive(command string, dataIn []byte) (int, string, []byte, 
 	}
 
 	return code, msg, data, err
+}
+
+func parseExtendedPassivePort(msg string) (int, error) {
+	start := strings.Index(msg, "(")
+	if start == -1 {
+		return 0, errors.New("invalid EPSV response")
+	}
+	end := strings.Index(msg[start+1:], ")")
+	if end == -1 {
+		return 0, errors.New("invalid EPSV response")
+	}
+
+	end += start + 1
+	payload := msg[start+1 : end]
+	if len(payload) < 5 {
+		return 0, errors.New("invalid EPSV response")
+	}
+
+	delim := payload[0]
+	if delim >= '0' && delim <= '9' {
+		return 0, errors.New("invalid EPSV delimiter")
+	}
+	if payload[1] != delim || payload[2] != delim || payload[len(payload)-1] != delim {
+		return 0, errors.New("inconsistent EPSV delimiters")
+	}
+
+	portText := payload[3 : len(payload)-1]
+	if portText == "" {
+		return 0, errors.New("missing EPSV port")
+	}
+
+	return strconv.Atoi(portText)
 }

@@ -29,15 +29,23 @@ package main
 import (
 	"fmt"
 	"github.com/CalypsoSys/joeftp"
+	"time"
 )
 
 func main() {
 	fmt.Printf("Testing JoeFtp\n")
 
-	ftp := joeftp.JoeFtp{Host: "ftp.cs.brown.edu", Port: 21, DebugMode: true}
+	ftp := joeftp.JoeFtp{
+		Host:          "ftp.cs.brown.edu",
+		Port:          21,
+		FTPS:          true,
+		DebugMode:     true,
+		Timeout:       10 * time.Second,
+		ExtendedPassive: true,
+	}
 	defer ftp.Close()
 
-	ftp.Connect("ftp.cs.brown.edu", 21, true)
+	ftp.Connect()
 	ftp.LogonAnonymous()
 	ftp.List()
 
